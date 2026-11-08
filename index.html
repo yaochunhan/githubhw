@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 46 46'%3E%3Ccircle cx='23' cy='23' r='21' fill='%231f3864'/%3E%3Cpath d='M12 30 L19 22 L25 27 L34 15' stroke='white' stroke-width='3' fill='none'/%3E%3C/svg%3E">
+<meta name="description" content="房貸 PMT、投資 FV、退休 PV 動態試算：拖曳滑桿，圖表即時變化。">
+<title>個人財務決策工具｜PMT・FV・PV 動態分析</title>
+<style>
+:root{--bg:#f4f6fa;--card:#fff;--ink:#1d2433;--mut:#6b7385;--line:#e3e7ef;--navy:#1f3864;--teal:#00806b;--blue:#2e75b6;--red:#c00000;--warn:#fde9e7;--ok:#00803c;--inbg:#fff7da}
+@media(prefers-color-scheme:dark){:root{--bg:#121722;--card:#1b2230;--ink:#e8ecf4;--mut:#9aa3b5;--line:#2c3547;--inbg:#3a3320;--warn:#3a1f1f}}
+*{box-sizing:border-box}body{margin:0;font-family:"Microsoft JhengHei","PingFang TC","Noto Sans TC",system-ui,sans-serif;background:var(--bg);color:var(--ink)}
+header{background:var(--navy);color:#fff;padding:18px 24px}header h1{margin:0;font-size:20px}header p{margin:4px 0 0;font-size:13px;opacity:.8}
+.bar{display:flex;flex-wrap:wrap;gap:8px;padding:12px 24px;background:var(--card);border-bottom:1px solid var(--line);position:sticky;top:0;z-index:5}
+button{border:0;border-radius:8px;padding:8px 12px;color:#fff;font:600 13px inherit;font-family:inherit;cursor:pointer;background:var(--navy)}
+button:hover{filter:brightness(1.15)}button.t{background:var(--teal)}button.o{background:#ed7d31}button.g{background:#7f7f7f}button.r{background:var(--red)}
+main{display:grid;grid-template-columns:360px 1fr;gap:16px;padding:16px 24px;max-width:1500px;margin:auto}
+@media(max-width:980px){main{grid-template-columns:1fr;padding:12px}}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px 16px}
+h2{margin:0 0 10px;font-size:14px;color:#fff;padding:6px 10px;border-radius:6px;background:var(--teal)}h2.b{background:var(--blue)}
+.row{display:grid;grid-template-columns:1fr 112px;gap:2px 8px;margin:9px 0}.row label{font-size:13px}.row input[type=number]{width:100%;padding:4px 6px;border:1px solid var(--line);border-radius:6px;background:var(--inbg);color:#0033cc;font-weight:700;text-align:right}
+@media(prefers-color-scheme:dark){.row input[type=number]{color:#8fb4ff}}
+.row input[type=range]{grid-column:1/3;width:100%;accent-color:var(--teal)}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:10px}
+.k{border:1px solid var(--line);border-radius:10px;padding:10px 12px}.k small{color:var(--mut);font-size:12px}.k b{display:block;font-size:20px;margin:2px 0}.k i{font-style:normal;font-size:12px;color:var(--ok)}.k.w{background:var(--warn)}.k.w i{color:var(--red);font-weight:700}
+.sum{margin:12px 0;padding:10px 14px;border-radius:10px;background:var(--inbg);font-weight:700;line-height:1.6}
+.charts{display:grid;grid-template-columns:repeat(auto-fit,minmax(380px,1fr));gap:12px;margin-top:12px}
+.charts canvas{width:100%;height:290px;background:var(--card);border:1px solid var(--line);border-radius:12px}
+details{margin:0 24px 24px;max-width:1452px}@media(min-width:1548px){details{margin:0 auto 24px}}
+details summary{cursor:pointer;font-weight:700;padding:10px 0}details li,details p{font-size:14px;line-height:1.7}
+.st{position:fixed;right:16px;bottom:16px;background:#000c;color:#fff;padding:8px 14px;border-radius:20px;font-size:13px;display:none}
+@media print{.bar,.st{display:none}}
+</style>
+</head>
+<body>
+<header><h1>個人財務決策工具｜房貸 PMT ・ 投資 FV ・ 退休 PV</h1><p>拖曳滑桿或輸入數字，圖表即時變化；紅點 = 目前設定。所有運算皆在您的瀏覽器內完成，資料不會上傳。</p></header>
+<div class="bar">
+ <button onclick="anim('rate')">▶ 動畫：房貸利率</button><button onclick="anim('years')">▶ 動畫：房貸年限</button>
+ <button class="t" onclick="anim('invRet')">▶ 動畫：投資報酬率</button><button class="t" onclick="anim('monthly')">▶ 動畫：每月投資</button>
+ <button class="r" onclick="stopA()">■ 停止</button>
+ <button class="o" onclick="scn('c')">情境：保守</button><button class="o" onclick="scn('b')">情境：基準</button><button class="o" onclick="scn('o')">情境：樂觀</button>
+ <button class="g" onclick="reset()">重設</button><button class="g" onclick="print()">列印/PDF</button>
+</div>
+<main>
+ <aside class="card" id="inputs"></aside>
+ <section>
+  <div class="card"><h2 class="b">輸出區</h2><div class="kpis" id="kpis"></div><div class="sum" id="sum"></div></div>
+  <div class="charts">
+   <canvas id="c1"></canvas><canvas id="c2"></canvas><canvas id="c3"></canvas>
+   <canvas id="c4"></canvas><canvas id="c5"></canvas><canvas id="c6"></canvas><canvas id="c7"></canvas>
+  </div>
+ </section>
+</main>
+<details open><summary>使用說明與公式</summary>
+<ul>
+<li><b>PMT 月付金</b> = PMT(年利率/12, 年限×12, −貸款)。利率↑、年限↓、貸款↑ → 月付↑；年限拉長月付降低，但總利息大增。</li>
+<li><b>FV 期末資產</b> = FV(年報酬/12, 年數×12, −月投資, −初始資產)。複利使「時間」的影響大於初始金額。</li>
+<li><b>PV 退休金需求</b> = PV(報酬/12, 領取年數×12, −退休月生活費)；月生活費先依通膨換算至退休時。</li>
+<li><b>龍捲風圖</b>：把每個變數單獨調高 10%，看輸出變動多少，快速找出最關鍵的變數。</li>
+<li>房貸負擔率超過 35% 或頭期款不足時，輸出卡片會以紅底警示。本工具僅供試算，不構成理財建議。</li>
+</ul></details>
+<div class="st" id="st"></div>
+<script>
+const $=s=>document.querySelector(s);
+// id,label,min,max,step,default,type(n/p),unit
+const S=[['price','購屋總價',3e6,3e7,1e5,1e7,'n','元'],['ltv','房貸成數',.3,.9,.01,.75,'p','%'],['rate','房貸年利率',.005,.08,.001,.025,'p','%'],['years','房貸年限',10,35,1,30,'n','年'],['assets','目前金融資產',0,5e6,5e4,1e6,'n','元'],['income','每月收入',2e4,3e5,1e3,65000,'n','元'],['expense','非房貸生活支出',5e3,15e4,1e3,25000,'n','元'],
+['init','初始投資資產',0,3e6,1e4,1e5,'n','元'],['monthly','每月定期投資',0,1e5,1e3,1e4,'n','元'],['invRet','投資年報酬率',0,.12,.001,.04,'p','%'],['invYears','投資年限(距退休)',1,35,1,20,'n','年'],
+['retCost','退休月生活費(今日)',1e4,15e4,1e3,40000,'n','元'],['retYears','退休後領取年數',5,40,1,20,'n','年'],['retRet','退休期間報酬率',0,.08,.001,.04,'p','%'],['infl','長期通膨率',0,.05,.001,.015,'p','%'],['age','目前年齡',18,60,1,25,'n','歲']];
+const G=[[0,'① 購屋與房貸 (PMT)'],[7,'② 投資累積 (FV)'],[11,'③ 退休需求 (PV)']];
+const V={};S.forEach(s=>V[s[0]]=s[5]);
+const SP={};S.forEach(s=>SP[s[0]]=s);
+const fmt=n=>Math.round(n).toLocaleString('en-US'), pc=(x,d=1)=>(x*100).toFixed(d)+'%';
+// 財務函數（正數 = 金額）
+const pmt=(r,n,pv)=>r?pv*r/(1-Math.pow(1+r,-n)):pv/n;
+const fv=(r,n,p,pv)=>{const g=Math.pow(1+r,n);return pv*g+p*(r?(g-1)/r:n)};
+const pva=(r,n,p)=>p*(r?(1-Math.pow(1+r,-n))/r:n);
+function calc(v){
+ const loan=v.price*v.ltv,down=v.price-loan,gap=v.assets-down,n=v.years*12,P=pmt(v.rate/12,n,loan);
+ const cap=pva(v.rate/12,n,v.income*.35),FV=fv(v.invRet/12,v.invYears*12,v.monthly,v.init);
+ const rm=v.retCost*Math.pow(1+v.infl,v.invYears),PV=pva(v.retRet/12,v.retYears*12,rm);
+ const r=v.invRet/12,N=v.invYears*12,g=Math.pow(1+r,N),ann=r?(g-1)/r:N;
+ return{loan,down,gap,P,burden:P/v.income,interest:P*n-loan,cap,principal:v.init+v.monthly*N,FV,rm,PV,short:FV-PV,need:Math.max(0,(PV-v.init*g)/ann),retAge:v.age+v.invYears,real:FV/Math.pow(1+v.infl,v.invYears)};
+}
+function yearly(v,c){const o=[{k:0,bal:c.loan,int:0,pri:0,house:v.price,fin:v.assets-c.down}];
+ for(let k=1;k<=35;k++){const p=o[k-1],b=k>=v.years?0:Math.max(0,fvBal(v,c,k*12)),pay=k<=v.years,pri=p.bal-b;
+  o.push({k,bal:b,int:pay?c.P*12-pri:0,pri,house:v.price*Math.pow(1+v.infl,k),fin:p.fin*(1+v.invRet)+(v.income-v.expense)*12-(pay?c.P*12:0)})}
+ o.forEach(y=>{y.nw=y.house+y.fin-y.bal;const n=Math.min(y.k,v.invYears)*12;y.inv=fv(v.invRet/12,n,v.monthly,v.init);y.prin=v.init+v.monthly*n});return o}
+function fvBal(v,c,m){const r=v.rate/12,g=Math.pow(1+r,m);return c.loan*g-c.P*(r?(g-1)/r:m)}
+// ---------- 圖表 ----------
+function setup(cv){const d=devicePixelRatio||1,w=cv.clientWidth,h=cv.clientHeight;cv.width=w*d;cv.height=h*d;const x=cv.getContext('2d');x.scale(d,d);x.clearRect(0,0,w,h);
+ const cs=getComputedStyle(document.body);return{x,w,h,ink:cs.color,mut:getComputedStyle(document.documentElement).getPropertyValue('--mut'),line:getComputedStyle(document.documentElement).getPropertyValue('--line')}}
+const nice=(a,b)=>{const s=(b-a)||1,p=Math.pow(10,Math.floor(Math.log10(s/5))),u=[1,2,5,10].find(m=>s/(m*p)<=6)*p;return{a:Math.floor(a/u)*u,b:Math.ceil(b/u)*u,u}};
+const short=n=>Math.abs(n)>=1e8?(n/1e8).toFixed(1)+'億':Math.abs(n)>=1e4?(n/1e4).toFixed(0)+'萬':fmt(n);
+function frame(E,title,xl,yl,pad){const{x,w,h}=E;x.fillStyle=E.ink;x.font='bold 14px sans-serif';x.textAlign='center';x.fillText(title,w/2,20);
+ x.font='11px sans-serif';x.fillStyle=E.mut;x.fillText(xl,(pad.l+w-pad.r)/2,h-4);x.save();x.translate(12,(pad.t+h-pad.b)/2);x.rotate(-Math.PI/2);x.fillText(yl,0,0);x.restore()}
+function legend(E,items){let X=50;const{x,h}=E;x.font='11px sans-serif';x.textAlign='left';items.forEach(([n,c,dot])=>{x.fillStyle=c;dot?(x.beginPath(),x.arc(X+5,h-20,5,0,7),x.fill()):x.fillRect(X,h-24,14,4);x.fillStyle=E.ink;x.fillText(n,X+18,h-17);X+=x.measureText(n).width+36})}
+// 折線圖  o:{xs,series:[{n,c,y,dash}],mark:{x,y},xf,title,xl,yl}
+function line(id,o){const E=setup($(id)),{x,w,h}=E,p={l:62,r:14,t:32,b:52};frame(E,o.title,o.xl,o.yl,p);
+ let ys=o.series.flatMap(s=>s.y);if(o.mark)ys.push(o.mark.y);const Y=nice(Math.min(0,...ys),Math.max(...ys)),x0=o.xs[0],x1=o.xs[o.xs.length-1];
+ const X=v=>p.l+(v-x0)/(x1-x0||1)*(w-p.l-p.r),Yy=v=>h-p.b-(v-Y.a)/(Y.b-Y.a)*(h-p.t-p.b);
+ x.font='10px sans-serif';x.textAlign='right';for(let t=Y.a;t<=Y.b+1e-9;t+=Y.u){x.strokeStyle=E.line;x.beginPath();x.moveTo(p.l,Yy(t));x.lineTo(w-p.r,Yy(t));x.stroke();x.fillStyle=E.mut;x.fillText(short(t),p.l-4,Yy(t)+3)}
+ x.textAlign='center';const st=Math.ceil(o.xs.length/8);o.xs.forEach((v,i)=>{if(i%st==0){x.fillStyle=E.mut;x.fillText(o.xf(v),X(v),h-p.b+14)}});
+ o.series.forEach(s=>{x.strokeStyle=s.c;x.lineWidth=2.2;x.setLineDash(s.dash?[6,4]:[]);x.beginPath();s.y.forEach((v,i)=>i?x.lineTo(X(o.xs[i]),Yy(v)):x.moveTo(X(o.xs[i]),Yy(v)));x.stroke();x.setLineDash([])});
+ if(o.mark){x.fillStyle='#c00000';x.beginPath();x.arc(X(o.mark.x),Yy(o.mark.y),6,0,7);x.fill();x.strokeStyle='#fff';x.lineWidth=2;x.stroke()}
+ legend(E,o.series.map(s=>[s.n,s.c]).concat(o.mark?[['目前設定','#c00000',1]]:[]))}
+// 堆疊柱  
+function stack(id,o){const E=setup($(id)),{x,w,h}=E,p={l:62,r:14,t:32,b:52};frame(E,o.title,o.xl,o.yl,p);
+ const tot=o.a.map((v,i)=>v+o.b[i]),Y=nice(0,Math.max(...tot,1)),bw=(w-p.l-p.r)/o.a.length,Yy=v=>h-p.b-(v-Y.a)/(Y.b-Y.a)*(h-p.t-p.b);
+ x.font='10px sans-serif';x.textAlign='right';for(let t=Y.a;t<=Y.b+1e-9;t+=Y.u){x.strokeStyle=E.line;x.beginPath();x.moveTo(p.l,Yy(t));x.lineTo(w-p.r,Yy(t));x.stroke();x.fillStyle=E.mut;x.fillText(short(t),p.l-4,Yy(t)+3)}
+ o.a.forEach((v,i)=>{const X=p.l+i*bw+1;x.fillStyle=o.ca;x.fillRect(X,Yy(v),bw-2,Yy(0)-Yy(v));x.fillStyle=o.cb;x.fillRect(X,Yy(v+o.b[i]),bw-2,Yy(v)-Yy(v+o.b[i]));if(i%4==3){x.fillStyle=E.mut;x.textAlign='center';x.fillText(o.labels[i],X+bw/2,h-p.b+14)}});
+ legend(E,[[o.na,o.ca],[o.nb,o.cb]])}
+// 橫條（龍捲風）
+function bars(id,o){const E=setup($(id)),{x,w,h}=E,p={l:130,r:40,t:32,b:30};frame(E,o.title,'',' ',p);
+ const m=Math.max(.05,...o.v.map(Math.abs)),bh=(h-p.t-p.b)/o.v.length,mid=p.l+(w-p.l-p.r)/2,sc=(w-p.l-p.r)/2/m;
+ x.strokeStyle=E.mut;x.beginPath();x.moveTo(mid,p.t);x.lineTo(mid,h-p.b);x.stroke();
+ o.v.forEach((v,i)=>{const y=p.t+i*bh+3;x.fillStyle=v>=0?'#2e75b6':'#ed7d31';x.fillRect(v>=0?mid:mid+v*sc,y,Math.abs(v)*sc,bh-6);
+  x.fillStyle=E.ink;x.font='11px sans-serif';x.textAlign='right';x.fillText(o.l[i],p.l-6,y+bh/2+1);x.textAlign=v>=0?'left':'right';x.fillText((v>=0?'+':'')+(v*100).toFixed(1)+'%',mid+v*sc+(v>=0?4:-4),y+bh/2+1)})}
+// ---------- UI ----------
+function build(){const A=$('#inputs');A.innerHTML='';G.forEach(([i0,t],gi)=>{const end=G[gi+1]?G[gi+1][0]:S.length;A.insertAdjacentHTML('beforeend',`<h2>輸入區｜${t}</h2>`);
+ for(let i=i0;i<end;i++){const[id,l,mn,mx,st,,ty,u]=S[i],k=ty=='p'?100:1;A.insertAdjacentHTML('beforeend',`<div class="row"><label>${l} <small style="color:var(--mut)">${u}</small></label><input type="number" id="n_${id}" min="${mn*k}" max="${mx*k}" step="${st*k}"><input type="range" id="r_${id}" min="${mn}" max="${mx}" step="${st}"></div>`);
+  $('#r_'+id).oninput=e=>{V[id]=+e.target.value;upd()};
+  $('#n_'+id).onchange=e=>{V[id]=clamp(id,+e.target.value/k);upd()}}})}
+const clamp=(id,v)=>{const s=SP[id];return Math.min(s[3],Math.max(s[2],isNaN(v)?s[5]:v))};
+function sync(){S.forEach(([id,,,,,,ty])=>{const k=ty=='p'?100:1;$('#r_'+id).value=V[id];const n=$('#n_'+id);if(document.activeElement!==n)n.value=+(V[id]*k).toFixed(3)})}
+function upd(){sync();const c=calc(V),Y=yearly(V,c);
+ const K=[['貸款金額',fmt(c.loan),'房價 × 成數'],['頭期款需求',fmt(c.down),c.gap<0?'⚠ 不足 '+fmt(-c.gap)+' 元':'✔ 頭期款充足',c.gap<0],['每月房貸 PMT',fmt(c.P),'總利息 '+fmt(c.interest)],['房貸負擔率',pc(c.burden),c.burden>.35?'⚠ 超過 35% 安全門檻':'✔ 負擔率正常',c.burden>.35],
+ ['35%可貸上限',fmt(c.cap),c.loan>c.cap?'⚠ 貸款超過可負擔上限':'✔ 在可負擔範圍',c.loan>c.cap],['期末資產 FV',fmt(c.FV),'投入本金 '+fmt(c.principal)],['FV 實質購買力',fmt(c.real),'折回今日幣值'],['退休金需求 PV',fmt(c.PV),'退休時月生活費 '+fmt(c.rm)],
+ ['達標缺口 FV−PV',fmt(c.short),c.short<0?'⚠ 資產不足以支應退休':'✔ 退休資金達標',c.short<0],['達標所需月投資',fmt(c.need),'預計 '+c.retAge+' 歲退休']];
+ $('#kpis').innerHTML=K.map(([a,b,s,w])=>`<div class="k${w?' w':''}"><small>${a}</small><b>${b}</b><i>${s}</i></div>`).join('');
+ $('#sum').textContent=`結論｜月付 ${fmt(c.P)} 元，負擔率 ${pc(c.burden)}${c.burden>.35?'（偏高）':'（健康）'}；${V.invYears} 年後資產 ${fmt(c.FV)} 元，退休需求 ${fmt(c.PV)} 元，${c.short<0?'尚差 '+fmt(-c.short)+' 元（每月需投資約 '+fmt(c.need)+' 元）。':'已達標。'}`;
+ const R1=[],R2=[],R3=[];for(let i=0;i<=10;i++){R1.push(.01+.005*i);R2.push(.01*i)}for(let i=0;i<=8;i++)R3.push(.01*i);
+ const cl=['#2e75b6','#00a383','#ed7d31','#7f7f7f'],pf=x=>pc(x,1),pf0=x=>pc(x,0);
+ line('#c1',{title:'PMT：利率與年限如何影響月付金',xl:'房貸年利率',yl:'每月房貸(元)',xs:R1,xf:pf,series:[20,25,30,35].map((y,i)=>({n:y+'年',c:cl[i],y:R1.map(r=>pmt(r/12,y*12,c.loan))})),mark:{x:V.rate,y:c.P}});
+ line('#c2',{title:'FV：報酬率與月投資如何影響期末資產',xl:'投資年報酬率',yl:'期末資產(元)',xs:R2,xf:pf0,series:[.5,1,1.5,2].map((m,i)=>({n:'月投 '+fmt(V.monthly*m),c:cl[i],y:R2.map(r=>fv(r/12,V.invYears*12,V.monthly*m,V.init))})),mark:{x:V.invRet,y:c.FV}});
+ line('#c3',{title:'PV：報酬率與領取年數如何影響退休金需求',xl:'退休期間報酬率',yl:'退休金需求(元)',xs:R3,xf:pf0,series:[15,20,25,30].map((y,i)=>({n:'領取 '+y+'年',c:cl[i],y:R3.map(r=>pva(r/12,y*12,c.rm))})),mark:{x:V.retRet,y:c.PV}});
+ const Z=Y.slice(1);stack('#c4',{title:'每年還款結構：利息 vs 本金',xl:'第幾年',yl:'金額(元)',labels:Z.map(y=>y.k),a:Z.map(y=>y.int),b:Z.map(y=>y.pri),na:'利息',nb:'本金',ca:'#ed7d31',cb:'#2e75b6'});
+ line('#c5',{title:'資產負債走勢：房價、房貸餘額與淨值',xl:'第幾年',yl:'金額(元)',xs:Y.map(y=>y.k),xf:v=>v+'年',series:[{n:'房價',c:'#7f7f7f',y:Y.map(y=>y.house)},{n:'房貸餘額',c:'#ed7d31',y:Y.map(y=>y.bal)},{n:'個人淨值',c:'#00a383',y:Y.map(y=>y.nw)}]});
+ {const T=tornado();bars('#c7',{title:'各變數 +10% 的影響程度（龍捲風圖）',l:T.map(a=>a[0]),v:T.map(a=>a[1])})}
+ line('#c6',{title:'投資累積 FV vs 本金 vs 退休需求 PV',xl:'第幾年',yl:'金額(元)',xs:Y.map(y=>y.k),xf:v=>v+'年',series:[{n:'投資資產 FV',c:'#00a383',y:Y.map(y=>y.inv)},{n:'投入本金',c:'#7f7f7f',y:Y.map(y=>y.prin)},{n:'退休需求 PV',c:'#c00000',dash:1,y:Y.map(()=>c.PV)}]});
+}
+function tornado(){const c=calc(V),ch=(k,o)=>{const d=calc({...V,[k]:V[k]*1.1})[o]/c[o]-1;return isFinite(d)?d:0};
+ return[['PMT｜購屋總價','price','P'],['PMT｜房貸利率','rate','P'],['PMT｜房貸年限','years','P'],['FV｜初始資產','init','FV'],['FV｜每月投資','monthly','FV'],['FV｜報酬率','invRet','FV'],['FV｜投資年限','invYears','FV'],['PV｜退休月生活費','retCost','PV'],['PV｜報酬率','retRet','PV'],['PV｜領取年數','retYears','PV']].map(([l,k,o])=>[l,ch(k,o)])}
+// ---------- 動畫 / 情境 ----------
+let timer=null;const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+const AN={rate:[.01,.06,50,'房貸年利率'],years:[10,35,25,'房貸年限'],invRet:[0,.1,50,'投資年報酬率'],monthly:[0,6e4,60,'每月投資']};
+async function anim(id){stopA();const[a,b,n,lab]=AN[id],orig=V[id];const my=timer={};
+ for(const[p,q]of[[a,b],[b,a]])for(let i=0;i<=n;i++){if(timer!==my)break;const s=SP[id];V[id]=Math.round((p+(q-p)*i/n-s[2])/s[4])*s[4]+s[2];V[id]=+V[id].toFixed(6);upd();show(lab+' = '+(s[6]=='p'?pc(V[id],1):fmt(V[id])));await sleep(80)}
+ V[id]=orig;upd();if(timer===my)timer=null;show('')}
+function stopA(){timer=null;show('')}
+function show(t){const e=$('#st');e.style.display=t?'block':'none';e.textContent=t}
+const SC={c:{rate:.035,invRet:.025,retRet:.025,infl:.025},b:{rate:.025,invRet:.04,retRet:.04,infl:.015},o:{rate:.02,invRet:.06,retRet:.05,infl:.015}};
+function scn(k){stopA();Object.assign(V,SC[k]);upd()}
+function reset(){stopA();S.forEach(s=>V[s[0]]=s[5]);upd()}
+build();upd();addEventListener('resize',()=>upd());
+</script>
+</body>
+</html>

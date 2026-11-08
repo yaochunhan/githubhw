@@ -1,0 +1,21 @@
+# 選用：用 GitHub Actions 自動部署到 Cloudflare Pages
+# 複製到 .github/workflows/deploy.yml，並在 GitHub Secrets 新增
+# CLOUDFLARE_API_TOKEN（權限：Cloudflare Pages - Edit）與 CLOUDFLARE_ACCOUNT_ID
+# 若已使用 Cloudflare 的「Connect to Git」就不需要這個，避免重複部署。
+name: Deploy to Cloudflare Pages
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: pages deploy . --project-name=finance-planner
